@@ -1,0 +1,15 @@
+.DS_Store
+.env
+cofs.db
+uploads/
+sample_papers/
+
+__pycache__/
+*.py[cod]
+
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+
+.pytest_cache/
+.mypy_cache/
