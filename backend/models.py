@@ -9,6 +9,11 @@ def _uuid() -> str:
     return str(uuid.uuid4())
 
 
+def _utcnow_naive() -> datetime:
+    """Store UTC timestamps without tzinfo to match the current DB column type."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 class Paper(Base):
     __tablename__ = "papers"
 
@@ -18,7 +23,7 @@ class Paper(Base):
     authors = Column(Text, nullable=True)
     date = Column(String, nullable=True)
     filename = Column(String, nullable=False)
-    upload_time = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    upload_time = Column(DateTime, default=_utcnow_naive)
     status = Column(String, default="pending")  # pending | processing | completed | failed
     page_count = Column(Integer, nullable=True)
     summary = Column(Text, nullable=True)

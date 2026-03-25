@@ -28,6 +28,27 @@ interface PaperProgressEvent {
   step: string;
 }
 
+async function readErrorMessage(res: Response, fallback: string) {
+  try {
+    const contentType = res.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      const data = (await res.json()) as { detail?: string };
+      if (data.detail) {
+        return data.detail;
+      }
+    } else {
+      const text = (await res.text()).trim();
+      if (text) {
+        return text;
+      }
+    }
+  } catch {
+    // Ignore parse failures and fall back to the generic message.
+  }
+
+  return fallback;
+}
+
 export async function fetchPapers(): Promise<Paper[]> {
   const res = await fetch(`${BASE}/papers`);
   if (!res.ok) throw new Error("Failed to fetch papers");
@@ -44,7 +65,7 @@ export async function uploadPaper(file: File): Promise<UploadPaperResponse> {
   const form = new FormData();
   form.append("file", file);
   const res = await fetch(`${BASE}/papers/upload`, { method: "POST", body: form });
-  if (!res.ok) throw new Error("Upload failed");
+  if (!res.ok) throw new Error(await readErrorMessage(res, "Upload failed"));
   return (await res.json()) as UploadPaperResponse;
 }
 
