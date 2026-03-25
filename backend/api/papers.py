@@ -1,5 +1,6 @@
 """Paper CRUD + upload + SSE progress endpoints."""
 import asyncio
+import logging
 import shutil
 import uuid
 from pathlib import Path
@@ -17,6 +18,7 @@ from backend.extraction.pipeline import process_paper, get_progress
 from backend.config import UPLOAD_DIR, SAMPLE_DIR
 
 router = APIRouter(prefix="/api/papers", tags=["papers"])
+logger = logging.getLogger(__name__)
 
 
 # ── Upload ──────────────────────────────────────────────
@@ -26,19 +28,26 @@ async def upload_paper(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
 ):
-    paper_id = str(uuid.uuid4())
-    ext = Path(file.filename or "paper.pdf").suffix
-    dest = UPLOAD_DIR / f"{paper_id}{ext}"
+    try:
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-    with open(dest, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+        paper_id = str(uuid.uuid4())
+        ext = Path(file.filename or "paper.pdf").suffix
+        dest = UPLOAD_DIR / f"{paper_id}{ext}"
 
-    paper = Paper(id=paper_id, filename=file.filename or "unknown.pdf", status="pending")
-    db.add(paper)
-    await db.commit()
+        with open(dest, "wb") as f:
+            shutil.copyfileobj(file.file, f)
 
-    background_tasks.add_task(_run_pipeline, paper_id, str(dest))
-    return {"id": paper_id, "status": "pending"}
+        paper = Paper(id=paper_id, filename=file.filename or "unknown.pdf", status="pending")
+        db.add(paper)
+        await db.commit()
+
+        background_tasks.add_task(_run_pipeline, paper_id, str(dest))
+        return {"id": paper_id, "status": "pending"}
+    except Exception as e:
+        await db.rollback()
+        logger.exception("Upload failed for %s: %s", file.filename, e)
+        raise HTTPException(500, f"Upload failed: {str(e)[:300]}")
 
 
 # ── Batch import from sample_papers/ ────────────────────
