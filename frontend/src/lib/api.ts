@@ -1,6 +1,16 @@
 import type { COFMaterial, Paper } from "../types";
 
-const BASE = "/api";
+function resolveApiBase() {
+  const rawBase = import.meta.env.VITE_API_BASE_URL?.trim();
+  if (!rawBase) {
+    return "/api";
+  }
+
+  const normalized = rawBase.replace(/\/+$/, "");
+  return normalized.endsWith("/api") ? normalized : `${normalized}/api`;
+}
+
+const BASE = resolveApiBase();
 
 interface UploadPaperResponse {
   id: string;
